@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+
+<style>
+*{
+margin:10px;
+}
+
+.my_awesome_table {
+  font-family: arial, sans-serif;
+  width: 70%;
+  background-color: #dddddd;
+  border: 2px solid red;
+  font-style: italic;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  padding: 8px;
+}
+
+ 
+</style>
+
+
+<script>
+class ui {
+
+	/*
+	The ui class only contains static methods to generate with minimal code configurable HTML elements.
+	
+	In this first commit, only a table component is being generated and the class is defined inside the 
+    html page. In future commits, the ui class will be moved to a js library.	
+	
+	*/
+
+
+	static addAttributesTo(target, properties){ 
+		
+		if (properties == undefined){
+		return 
+		}
+		for (let p of Object.keys(properties)) 
+
+			if(p.trim() == 'innerHTML')  target.innerHTML = properties[p];
+			else target.setAttribute(p, properties[p] )
+		 
+	}
+	
+		
+	static table( parent_id, items, table_attributes=undefined,header_attributes=undefined){
+
+
+
+		//The table header columns are all the keys in the items object (a dictionary)
+		//we put all these keys in a set so they arent repeated. 
+		let table_columns = new Set()
+		data.forEach( (element) => { 
+			Object.keys(element).forEach( (one)=> {
+			table_columns.add( one );
+			});
+		});
+
+		//create the table, its header row and append the table to a parent element
+		let table = document.createElement('table');
+		let thead = document.createElement('thead');
+		table.appendChild(thead);
+		table_columns.forEach( (column) => {thead.appendChild(document.createElement("th")).appendChild(document.createTextNode(column));});
+		//document.getElementById(parent_id).appendChild( table );
+		
+		ui.addAttributesTo( table, table_attributes )
+		ui.addAttributesTo( thead, header_attributes )
+		
+
+		//create an array from the columns set just because it is easier to iterate through an array 
+		let s = Array.from(table_columns);
+
+		data.forEach((item) => {           //for each item in the json
+			let counter = 0; 
+			let row = table.insertRow(-1); //add a row at the end 
+			
+			s.forEach( (key) => {             //for each column name   
+			let value =  item[key];           //fetch the value for the item (may be undefined)
+			let c1 = row.insertCell(counter); //and add the cell to the row. 
+			
+			if(value == undefined) c1.innerText = ''  //yet if the value was undefined 
+			else c1.innerText = value;                //dont add the string 'undefined' set it to empty 
+			
+			counter = counter + 1; 
+			});
+		});
+		 
+		// the table will have some properties and will raise some events 
+		// this event is raised when the table is clicked. 
+		// the client application just gets relevant data in the event-details.
+		// which are in turn populated in the code below. 
+		table.raise_click_event = function( data ){
+		this.dispatchEvent(new CustomEvent("row_clicked", {bubbles: true,detail: data}));
+		}
+		
+		//the table basic properties, such as num rows, header column names, etc...
+		table.numRows = table.rows.length; 
+		
+		table.headerColumnNames = Array.from(table_columns);
+		
+		table.nClicks = 0 
+		
+		//the events now.  
+		let rows = table.rows;
+		for (let i = 0; i < rows.length; i++)      //for each row 
+		  { 
+			let row = rows[i];
+			row.addEventListener('click',(evt)=>   //add a click event 
+				{
+				const cell = evt.target.closest('td');
+				if (!cell) {return;}// not clicked on a cell
+				
+				let cellText = evt.target.innerText;                
+				let data = {'row_index': i, 'cell_text': cellText, 'cell_index':cell.cellIndex} 
+																	 //these are the event-details 
+																	 //the index of the row and cell clicked.
+																	 //the text in the cell clicked 
+				let cells = row.cells;                               //plus the header and the value of each cell for the headers
+				for(let n = 0; n < s.length; n++) data[s[n]] = cells[n].innerText;
+
+				//also the number of clickc cummulated in the table, the table element itself, the row elelemnt and the cell eleemnt 
+				table.nClicks+=1
+				data['nclicks']= table.nClicks;
+				
+				data['table_element'] = table;
+				data['row_element']   = row;  
+				data['cell_element']  = cell;
+				table.raise_click_event( data );                     
+				});
+		  }
+
+		return table; 
+		}
+
+
+ }
+	
+</script>
+	
+
+
+
+
+<h2>Table component</h2>
+
+<h3>Bootstrap styling</h3>
+<div>
+
+	<div id='table_stuff'></div>
+
+	<div style='border: 1px solid grey'>
+	<pre>
+	let table_data = get_table_data(); //just example data 
+
+	//create a table with some bootstrap style. 
+	//the prototype is: id, json-like obj (js obj) table attributes(can be undef) and header attrs (can be undef) 
+	let example_table = table('table_stuff', table_data,
+                              {class :"table table-striped table-bordered table-hover"}, //table attrs 
+                              {class : "btn-primary" });                                 //header attrs
+
+	</pre>
+	</div>
+</div>
+
+<h3>Events and attributes of the table </h3> 
+<div>
+	<p>
+	The table element emits one single event: row_clicked. The event field: details constains information 
+	about the row index clicked, the cell index, text in the cells, etc. The table created also exposes a 
+	number of properties that can be queried from the element itself such as the number of rows, column names, etc.
+	</p>
+	<p>
+	In the example below, we connected the table event to an event handler that prints in the debug console all 
+	the details of the element emitted. 
+	</p>
+
+	<div style='border: 1px solid grey'>
+	<pre>
+	example_table.addEventListener(  'row_clicked', (evt)=>{
+
+	console.log('main document received a table click event');
+	console.log('these are the details') 
+	console.log( 'details ', evt.detail );
+	console.log()
+	console.log('the number of times the table has been clicked is', evt.target.nClicks ) 
+	console.log('the number of rows in the table is ', evt.target.numRows );
+	console.log('the columns in the table are ', evt.target.headerColumnNames );
+	console.log();
+	 
+	console.log('the row index clicked is', evt.detail['row_index']);
+	console.log('the cell index clicked is', evt.detail['cell_index']);
+	console.log('the text in the cell clicked is', evt.detail['cell_text']);
+	})
+	</pre>
+	</div>
+
+</div>
+
+<h3>Adding your own styling</h3>
+<div>
+	<p> 
+	To add your own style, simply define the style and pass it to the table constructor in the 
+	form of a class name, for instance, in the example below, we created our own definition of 
+	the style for the class = 'my_awesome_table':
+	</p>
+
+	<p>
+	<pre>
+	<astyle>
+		.my_awesome_table {
+		  font-family: arial, sans-serif;
+		  width: 50%;
+		  background-color: #dddddd;
+		  border: 2px solid red;
+		  font-style: italic;
+		}
+		</astyle>
+	</pre>
+	</p>
+
+	<p>
+	And then we construct the table by passing the appropiate class name during construction:
+	</p>
+	<div style='border: 1px solid grey'>
+	<pre>
+	
+	let another_table = table('my_table', table_data,
+                               {class :"my_awesome_table"},
+                               {class : "btn-primary" });
+	document.getElementById('table_stuff2').appendChild( another_table );
+	</pre>
+	</div>
+
+	<p>
+	Note that we can mix and match. In the example above, we kept the header styling with bootstrap colors, while the table in itself 
+	was styled according to the css definition of the class: 'my_awesome_table'.
+	</p>
+	<div id='table_stuff2'></div>
+</div>
+
+<h3> Mixing Bootstrap with other css styling </h3>
+<div>
+	<p>
+	In the example below, we kept the table styling as in bootstrap, but also added itatic fonts as part of our own 
+	personalization of the bootstrap style. The table style defined also overides the bootstrap style and limit the 
+	horizontal extent of the element to 70%. The hovering style and the striping of rows is automatically inherited 
+	from bootstrap.
+	</p>
+
+	<div style='border: 1px solid grey'>
+	<pre>
+	
+	let yet_another_table = table('my_table3', table_data,
+                                  {class :"table table-striped table-bordered table-hover  my_awesome_table"},
+                                  {class : "btn-primary" });
+	document.getElementById('table_stuff3').appendChild( yet_another_table );
+	</pre>
+	</div>
+</p>
+</div>
+
+<h2> Summary of the example</h2>
+<div>
+	<p>Hopefully, this example would have provided a taste on the quick-js library developed via one example of 
+	one of its multiple components. 
+	Hopefully, this example showed the full flexibility with really minimal coding that can be achieved.
+	In fact, note that for each of the examples provided, the code consists in really only two lines of code:
+	One to define the element and one to connect its events. The latte rof course is optional but if the 
+    event hadlers are used, then the libray aims at providing as part of the event-details any potential piece 
+    of information that could be ever needed in a reasonably complex application. All, with zero or near-zero coding. 	
+	</p>
+</div>
+
+
+</head>
+<body>
+
+<div id='table_stuff3'></div>
+
+
+
+</body>
+
+<script>
+
+
+function get_table_data(){
+data = [
+  {
+  'Name' : 'Dataset1',
+  'Regions': ['UI'], 
+  'Fields': ['CLB', 'YLB']
+  },
+  {
+  'Name' : 'Dataset2',
+  'Regions': ['UI'], 
+  'Fields': ['YLB'],
+  'Sine': 32
+  
+  },
+  {
+  'Name' : 'Dataset3',
+  'Regions': ['UI'], 
+  'Fields': ['ACA', 'CLB','YLB'],
+  'well count': 12 
+  }]
+  
+  return data
+}
+
+
+
+
+let table_data = get_table_data(); //just example data 
+
+//create a table with some bootstrap style. 
+//the prototype is: id, json-like obj (js obj) table attributes(can be undef) and header attrs (can be undef) 
+let example_table = ui.table('my_table', table_data,{class :"table table-striped table-bordered table-hover"},
+													{class : "btn-primary" });
+
+document.getElementById('table_stuff').appendChild( example_table );
+
+example_table.addEventListener(  'row_clicked', (evt)=>{
+
+console.log('main document received a table click event');
+console.log('these are the details') 
+console.log( 'details ', evt.detail );
+console.log()
+console.log('the number of times the table has been clicked is', evt.target.nClicks ) 
+console.log('the number of rows in the table is ', evt.target.numRows );
+console.log('the columns in the table are ', evt.target.headerColumnNames );
+console.log();
+ 
+console.log('the row index clicked is', evt.detail['row_index']);
+console.log('the cell index clicked is', evt.detail['cell_index']);
+console.log('the text in the cell clicked is', evt.detail['cell_text']);
+
+
+
+})
+
+//another table using own style
+let another_table = ui.table('my_table2', table_data,{class :"my_awesome_table"},
+    												 {class : "btn-primary" });
+document.getElementById('table_stuff2').appendChild( another_table );
+
+
+
+//another table using own style + bootstrap 
+let yet_another_table = ui.table('my_table3', table_data,{class :"table table-striped table-bordered table-hover  my_awesome_table"},
+												 	  {class : "btn-primary" });
+document.getElementById('table_stuff3').appendChild( yet_another_table );
+
+</script>
+
+
+</html>
+
